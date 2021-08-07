@@ -1,0 +1,7 @@
+{
+    "jwtPrivateKey": "test",
+    "db": "mongodb://localhost/student",
+    "port": "3005",
+    "serverProtocal": "http",
+    "apiHost": "localhost:3005"
+}

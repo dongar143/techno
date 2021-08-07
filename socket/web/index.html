@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Socket.IO chat</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+</head>
+
+<body class="container-fluid">
+    <div class="row">
+        <form action="">
+            <div class="form-group col-md-5">
+                <div class="form-group col-md-12">
+                    <label for="url">Socket Server:</label>
+                    <input id="url" autocomplete="on" placeholder="http://" value="" class="form-control" />
+                </div>
+                <div class="form-group col-md-12">
+                    <label for="u">Token:</label>
+                    <input id="u" autocomplete="on" placeholder="Token"
+                        value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2MDJiYTgzMWMxMWIxNDFlZGExZmUwNTIiLCJpc0FkbWluIjpmYWxzZSwibmFtZSI6InNhbmRpcCIsImVtYWlsIjoic2FuZGlwQGdtYWlsLmNvbSIsImlhdCI6MTYxMzQ3ODY2OH0.FGXJDB8q7s-z9U7im3CS7T9j1HFF1F-1GO2YgBDR4gs"
+                        class="form-control" />
+                </div>
+                <div class="form-group col-md-12">
+                    <button type="button" id="connectBtn" onclick="connect()" class="btn btn-success"><span
+                            class="glyphicon glyphicon-refresh"></span> Connect
+                    </button>
+
+                    <button type="button" id="dicconnectBtn" onclick="disconnect()" class="btn btn-success"><span
+                            class="glyphicon glyphicon-refresh"></span> Connect
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-7">
+
+                <div class="input-group">
+                    <span class="input-group-addon">Type</span>
+                    <select id="eventId" class="form-control" onchange="eventChangeMsg()">
+                        <option value="GMP">1. Get My Profile</option>
+                        <option value="GMC">2. Get My Customer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+
+                    <label for="chatType">Send: </label>
+                    <label for="msg">Message: </label>
+                    <textarea rows="10" id="msgReqId" autocomplete="on" type="text" placeholder="Message"
+                        class="form-control"></textarea>
+                    <span class="input-group-btn">
+                        <button id="submitBtn" class="btn btn-primary">Send <span
+                                class="glyphicon glyphicon-send"></span>
+                        </button>
+                    </span>
+                </div>
+            </div>
+        </form>
+    </div>
+    <hr />
+
+    <!--<ul id="messages" class="list-group"></ul>-->
+    <table class="table table-hover table-bordered table-stripped">
+        <thead>
+            <tr>
+                <th>Event</th>
+                <th>Response</th>
+            </tr>
+        </thead>
+        <tbody id="messages">
+
+        </tbody>
+    </table>
+
+
+    <script src="https://cdn.socket.io/socket.io-3.0.5.js"></script>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+
+        // set current url in textbox; after web page is ready
+        $(document).ready(function () {
+            var url = window.location.href
+            var arr = url.split("/");
+
+            $("#url").val(arr[0] + "//" + arr[2]);
+        });
+
+
+        function eventChangeMsg() {
+            d = document.getElementById("eventId").value;
+            var obj = {};
+            if (d == "GMP") {
+                obj =
+                {
+                    "evt": "GMP"
+                }
+            }
+            if (d == "GMC") {
+                obj =
+                {
+                    "evt": "GMC",
+                    "data": {
+                        "search": ""
+                    }
+                }
+            }
+
+            document.getElementById("msgReqId").innerHTML = JSON.stringify(obj, undefined, 4);
+
+        }
+        var socket;
+
+    
+        function disconnect() {
+            if (socket)
+                socket.disconnect();
+        }
+        function connect() {
+            socket = io($('#url').val(), { query: { token: $('#u').val() } });
+
+            socket.on('connect', function () {
+                console.log("connected")
+                //socket.broadcast.emit('send',{message: 'You are Connected'});
+                appendMessage("On_connect", "You are Connected.....");
+            });
+
+            socket.on('disconnect', function () {
+                appendMessage("On_disconnect", "Disconnected.....");
+            });
+
+         
+
+
+            socket.on('res', function (data) {
+                appendMessage("New Event Response", data);
+            });
+
+
+            socket.on('user_disconnect', function (data) {
+                appendMessage("user disconnected", data);
+            });
+
+            socket.on('auth_success', onAuthConnect);
+            socket.on('onError', onError);
+
+
+
+            function onAuthConnect(msg) {
+                appendMessage("Auth Success", msg);
+            }
+
+            function onError(msg) {
+                appendMessage("Error", msg);
+            }
+        }
+
+        $('#submitBtn').on('click', function () {
+            //var m = $('#m');
+            console.log($('#e').val());
+            //socket.emit($('#e').val(), m.val());
+            var messageObj = $('#msgReqId').val();
+            messageObj = JSON.parse(messageObj);
+            socket.emit('req', messageObj, function (bool) {
+                console.log(bool);
+                if (bool) {
+                    console.log(JSON.stringify(messageObj) + ': Msg Sent');
+                }
+            });
+
+            return false;
+        });
+
+
+
+        function appendMessage(event, msg) {
+            console.log(event)
+            console.log(msg)
+            console.log(typeof msg)
+            if (typeof msg == "object") {
+                msg = JSON.stringify(msg, undefined, 4);
+                $('#messages').append('<tr><td id="' + msg + '">' + event + '</td><td><textarea disabled rows="20" cols="90">' + msg + '</textarea></td></tr>');
+            }
+            else {
+                $('#messages').append('<tr><td id="' + msg + '">' + event + '</td><td>' + msg + '</td></tr>');
+            }
+
+
+        }
+        function appendMessageWithButton(event, msg, button) {
+            console.log(msg);
+            $('#messages').append('<tr id="' + JSON.parse(msg).id + '" ><td>' + event + '<br />' + button + '</td><td>' + msg + '</td></tr>');
+        }
+    </script>
+</body>
+
+</html>
